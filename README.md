@@ -57,7 +57,6 @@ Vamos criar o diretório exato que você especificou e entrar nele.
 
 ```bash
 mkdir -p ./data-eng-data-analysis-agent
-cd ./data-eng-data-analysis-agent
 
 ```
 
@@ -65,10 +64,10 @@ cd ./data-eng-data-analysis-agent
 
 ```bash
 # Cria o ambiente virtual chamado ".venv"
-python3 -m venv .venv
+python3 -m venv ./data-eng-data-analysis-agent/.venv
 
 # Ativa o ambiente virtual na sua sessão atual do terminal
-source .venv/bin/activate
+source ./data-eng-data-analysis-agent/.venv/bin/activate
 
 ```
 
@@ -81,6 +80,12 @@ Agora vamos baixar as bibliotecas necessárias:
 
 1. Crie um arquivo `requirements.txt`:
 ```sh
+touch ./data-eng-data-analysis-agent/requirements.txt
+
+```
+
+2. Adicione as seguintes dependências:
+```
 langgraph
 langchain-google-genai
 pandas
@@ -88,7 +93,7 @@ python-dotenv
 
 ```
 
-2. Instale as dependências:
+3. Instale as dependências:
 ```bash
 pip install -r requirements.txt
 
@@ -98,7 +103,7 @@ pip install -r requirements.txt
 
 ```bash
 # Cria os arquivos vazios
-touch .env main.py agent.py tools.py
+touch ./data-eng-data-analysis-agent/.env ./data-eng-data-analysis-agent/main.py ./data-eng-data-analysis-agent/agent.py ./data-eng-data-analysis-agent/tools.py
 
 ```
 * `.env`: Arquivo destinado ao armazenamento da chave de API.
@@ -226,7 +231,7 @@ Volte para o seu terminal (certifique-se de que o `(.venv)` ainda está ativo e 
 
 Rode o script principal:
 ```bash
-python main.py
+python ./data-eng-data-analysis-agent/main.py
 
 ```
 
@@ -495,6 +500,11 @@ Para garantir que todos os alunos tenham exatamente a mesma estrutura de dados p
 
 Crie um arquivo chamado `create_mock_data.py` na raiz do seu projeto e insira o seguinte código:
 
+```sh
+touch ./data-eng-data-analysis-agent/create_mock_data.py
+
+```
+
 ```python
 import pandas as pd
 import zipfile
@@ -537,7 +547,7 @@ if __name__ == "__main__":
 
 Execute este script no seu terminal para preparar o ambiente:
 ```bash
-python create_mock_data.py
+python ./data-eng-data-analysis-agent/create_mock_data.py
 
 ```
 
@@ -547,7 +557,8 @@ Com o arquivo `dados_teste.zip` presente no diretório, nosso cenário está pro
 
 No terminal, execute:
 ```bash
-python main.py
+python ./data-eng-data-analysis-agent/main.py
+
 ```
 
 ### C. Auditoria de Execução (Análise de Logs)
