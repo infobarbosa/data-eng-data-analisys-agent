@@ -36,7 +36,7 @@ O Gemini não consegue abrir um arquivo zip na sua máquina sozinho. Nesta fase,
 * **3.3. Tool de Notificação:** Um mock simples que simula o envio de um e-mail com o relatório final (usaremos `print` ou um arquivo `.txt` de log inicialmente para não perder tempo configurando SMTP agora).
 
 ### Passo 4: Orquestração do Workflow
-Aqui é onde a mágica (que não é mágica) acontece. Vamos unir as Tools construídas na Fase 3 com o Grafo iniciado na Fase 2.
+Nesta etapa, estabelecemos a orquestração principal do sistema. Vamos unir as Tools construídas na Fase 3 com o Grafo iniciado na Fase 2.
 * **4.1.** Criação do nó de Roteamento: Ensinar o LangGraph a entrar em um loop onde ele decide usar uma ferramenta, observa o resultado, e decide se precisa usar outra.
 * **4.2.** Definição do "System Prompt" do Agente: As instruções claras de como ele deve se comportar como um analista de dados exploratório (ex: "Sempre verifique se há múltiplas entidades em um arquivo antes de gerar o relatório").
 
@@ -93,13 +93,13 @@ pip install langgraph langchain-google-genai pandas python-dotenv
 touch .env main.py agent.py tools.py
 
 ```
-* `.env`: Onde a chave da API vai morar.
+* `.env`: Arquivo destinado ao armazenamento da chave de API.
 * `main.py`: O ponto de entrada (entrypoint) que vai inicializar o fluxo.
 * `agent.py`: Onde vamos desenhar o Grafo (nós e arestas).
 * `tools.py`: Onde ficarão as suas funções puras de Python (suas APIs internas).
 
 ### E. Configuração da API Key
-O agente precisa de permissão para consultar o cérebro (LLM). 
+O agente precisa de autenticação para realizar requisições ao modelo (LLM). 
 1. Acesse o **Google AI Studio** ([https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)) com sua conta Google.
 2. Clique em **"Create API key"**.
 3. Copie a chave gerada.
@@ -109,3 +109,120 @@ O agente precisa de permissão para consultar o cérebro (LLM).
 GEMINI_API_KEY=sua_chave_gerada_aqui
 
 ```
+
+---
+
+## Passo 2: O "Hello World" do LangGraph
+
+Nesta etapa, não vamos ler nenhum arquivo ainda. Nosso objetivo é garantir que:
+1. O grafo consiga gerenciar o **Estado** (nossa variável de memória).
+2. O nosso servidor local consiga fazer a chamada REST (HTTPS) para a API do Google, enviando e recebendo dados corretamente.
+
+---
+
+### A. Construindo o Grafo (Edite o arquivo `agent.py`)
+
+Aqui definimos a lógica de processamento e a topologia. Fisicamente, estamos apenas criando um dicionário tipado (o Estado) e uma função Python comum que recebe esse dicionário, altera uma chave e o devolve.
+
+Copie e cole este código no seu `agent.py`:
+
+```python
+from typing import TypedDict, Optional
+from langgraph.graph import StateGraph, END
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+# 1. Definindo o Estado (A memória do nosso back-end)
+# Tudo o que o agente souber durante a execução viverá dentro deste dicionário.
+class AgentState(TypedDict):
+    mensagem_entrada: str
+    resposta_agente: Optional[str]
+
+# 2. Inicializando o cliente da API do LLM
+# Estamos instanciando o wrapper que fará os POSTs para a API do Google.
+# Usamos temperature=0 para respostas mais determinísticas (ideal para análise de dados).
+llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
+
+# 3. Criando o Nó (A função de processamento)
+def pensar_node(state: AgentState):
+    print(">>> [Nó: pensar] Acessando a API do Gemini...")
+    
+    # Lemos a entrada atual do estado
+    mensagem = state["mensagem_entrada"]
+    
+    # Abre uma conexão HTTPS, envia a string para o Google, aguarda e recebe a resposta.
+    resposta = llm.invoke(mensagem)
+    
+    # Retornamos APENAS a parte do estado que queremos atualizar
+    # O LangGraph se encarrega de fazer o "merge" no objeto de estado global.
+    return {"resposta_agente": resposta.content}
+
+# 4. Construindo a Topologia do Grafo
+workflow = StateGraph(AgentState)
+
+# Adicionamos o nosso único nó
+workflow.add_node("pensar", pensar_node)
+
+# Definimos o fluxo: Começo -> Nó Pensar -> Fim
+workflow.set_entry_point("pensar")
+workflow.add_edge("pensar", END)
+
+# Compilamos o Grafo para transformá-lo em um executável invocável
+app = workflow.compile()
+
+```
+
+---
+
+### B. O Ponto de Entrada (Edite o arquivo `main.py`)
+
+Ele carrega a chave de segurança, prepara o payload inicial (o Estado Inicial) e inicia a execução do Grafo.
+
+Copie e cole este código no seu `main.py`:
+
+```python
+import os
+from dotenv import load_dotenv
+from agent import app  # Importamos o grafo compilado que acabamos de criar
+
+# 1. Injeta a GEMINI_API_KEY do arquivo .env nas variáveis de ambiente do sistema operacional
+load_dotenv()
+
+def main():
+    print("Iniciando o servidor local do Agente...\n")
+    
+    # 2. Montamos o payload inicial
+    estado_inicial = {
+        "mensagem_entrada": "Olá! Assuma o papel de um agente de análise de dados. Diga apenas: 'Servidor online. Conexão com o modelo de linguagem estabelecida com sucesso!'."
+    }
+    
+    print("Invocando o Grafo...")
+    
+    # 3. Executamos o Grafo
+    # O .invoke() bloqueia a thread até que o grafo chegue ao nó END.
+    estado_final = app.invoke(estado_inicial)
+    
+    # 4. Consumimos o resultado final
+    print("\n=== Resposta do Agente ===")
+    print(estado_final["resposta_agente"])
+    print("==========================")
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+### C. A Execução (O Teste Físico)
+
+Volte para o seu terminal (certifique-se de que o `(.venv)` ainda está ativo e que você está dentro da pasta do projeto).
+
+Rode o script principal:
+```bash
+python main.py
+
+```
+
+### O que deve acontecer no seu terminal:
+Você verá os `prints` mostrando a ordem exata de execução. Primeiro o `main.py` avisa que iniciou, depois a thread entra no `agent.py` (dentro do `pensar_node`), avisa que está acessando a API, e por fim, imprime a resposta exata que pedimos para o Gemini gerar.
+
+Rode o comando e me diga: **Apareceu a mensagem de "Servidor online" ou o console retornou algum erro de chave de API ou de importação?** Assim que validarmos que a rede está comunicando, vamos implementar as ferramentas de manipulação de dados (Pandas) na Fase 3!
