@@ -405,7 +405,7 @@ def create_agent_workflow(api_key: str):
 
     # Retorna o aplicativo compilado, pronto para invocação
     return workflow.compile()
-    
+
 ```
 
 ### B. Atualizando o Ponto de Entrada (Edite o arquivo `main.py`)
@@ -466,5 +466,98 @@ if __name__ == "__main__":
 O método `bind_tools` converte as funções Python (extraídas via decorador `@tool`) em um esquema JSON e as anexa ao payload da requisição HTTP. Quando o modelo de linguagem recebe esse payload e identifica que precisa ler um arquivo, sua resposta à API não é um texto convencional, mas sim um objeto estruturado solicitando a chamada da função `extract_file`. 
 
 A função `tools_condition` intercepta essa resposta, roteia a execução para o nó `tools` no seu ambiente local (seu MacBook), executa o código Python da ferramenta, e anexa o resultado (o caminho do CSV, por exemplo) de volta no histórico para que o modelo possa prosseguir com o Passo 2 (análise).
+
+---
+
+Excelente. Chegamos à etapa final do laboratório, onde consolidamos todo o conhecimento aplicado.
+
+Neste **Passo 5**, vamos gerar uma massa de dados controlada (mock data) para simular um cenário real de engenharia de dados. Em seguida, executaremos o pipeline de ponta a ponta e analisaremos o comportamento autônomo do agente através dos logs gerados no terminal.
+
+Adicione este conteúdo ao seu material didático:
+
+---
+
+## Passo 5: Teste End-to-End
+
+A validação de um sistema autônomo exige um cenário com variáveis conhecidas para que possamos auditar as decisões tomadas pelo modelo. Para isso, criaremos um arquivo compactado contendo uma base de dados simulada.
+
+### A. Geração da Massa de Dados
+
+Para garantir que todos os alunos tenham exatamente a mesma estrutura de dados para o teste, criaremos um script utilitário. Este script irá gerar um arquivo `.csv` com colunas numéricas, categorias e alguns valores nulos intencionais (para testar a ferramenta de análise estatística), e então irá compactá-lo em um arquivo `.zip`.
+
+Crie um arquivo chamado `create_mock_data.py` na raiz do seu projeto e insira o seguinte código:
+
+```python
+import pandas as pd
+import zipfile
+import os
+import numpy as np
+
+def generate_mock_data():
+    print("Gerando massa de dados simulada...")
+    
+    # 1. Definição do conjunto de dados
+    # Incluímos valores nulos (np.nan) intencionalmente na coluna de avaliação
+    data = {
+        'id_transacao': range(1, 101),
+        'valor_compra': np.random.uniform(10.0, 500.0, 100),
+        'idade_cliente': np.random.randint(18, 70, 100),
+        'categoria_produto': np.random.choice(['Eletrônicos', 'Roupas', 'Alimentos'], 100),
+        'avaliacao_cliente': np.random.choice([1.0, 2.0, 3.0, 4.0, 5.0, np.nan], 100)
+    }
+
+    df = pd.DataFrame(data)
+    csv_filename = 'vendas_mock.csv'
+    
+    # 2. Exportação para CSV
+    df.to_csv(csv_filename, index=False)
+
+    # 3. Compactação para ZIP
+    zip_filename = 'dados_teste.zip'
+    with zipfile.ZipFile(zip_filename, 'w') as zipf:
+        zipf.write(csv_filename)
+
+    # 4. Limpeza do arquivo original
+    # Removemos o CSV solto para forçar o agente a utilizar a ferramenta de extração
+    os.remove(csv_filename) 
+    
+    print(f"Arquivo '{zip_filename}' criado com sucesso no diretório atual.")
+
+if __name__ == "__main__":
+    generate_mock_data()
+```
+
+Execute este script no seu terminal para preparar o ambiente:
+```bash
+python create_mock_data.py
+
+```
+
+### B. Execução do Pipeline Autônomo
+
+Com o arquivo `dados_teste.zip` presente no diretório, nosso cenário está pronto. Agora, iniciaremos a execução do agente através do nosso ponto de entrada principal.
+
+No terminal, execute:
+```bash
+python main.py
+```
+
+### C. Auditoria de Execução (Análise de Logs)
+
+Durante a execução, observe atentamente a saída no terminal. O comportamento esperado reflete o padrão de orquestração que configuramos no LangGraph. A sequência lógica deve ser:
+
+1.  **Início da Orquestração:** O `main.py` envia a instrução para o nó do agente.
+2.  **Roteamento para Extração:** O modelo avalia a solicitação, percebe que o alvo é um `.zip` e invoca a ferramenta correspondente. Você verá o log impresso pela sua função Python:
+    `[Tool: extract_file] Processando o arquivo: dados_teste.zip`
+    `[Tool: extract_file] Arquivo extraído com sucesso: vendas_mock.csv`
+3.  **Roteamento para Análise:** O LangGraph devolve o caminho do arquivo extraído para o modelo. O modelo, seguindo o prompt de sistema, invoca a ferramenta de leitura do Pandas. Você verá:
+    `[Tool: analyze_data] Iniciando análise do arquivo: vendas_mock.csv`
+    `[Tool: analyze_data] Análise concluída.`
+4.  **Roteamento para Notificação:** Com os dados estatísticos em mãos (estado), o modelo formata o relatório e aciona a última ferramenta.
+    `[Tool: notify_user] Preparando o envio da notificação...`
+    `[Tool: notify_user] Notificação salva no arquivo 'relatorio_final_log.txt'.`
+5.  **Encerramento:** O agente conclui que o fluxo está completo, gera a resposta final em texto para o usuário e o programa é finalizado.
+
+Após a execução, um novo arquivo chamado `relatorio_final_log.txt` deverá aparecer no seu diretório. Abra-o para verificar o relatório redigido pelo modelo, contendo as dimensões do dataset, os tipos de dados e as estatísticas geradas pelo Pandas.
 
 ---
