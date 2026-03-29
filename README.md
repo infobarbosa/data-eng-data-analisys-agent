@@ -228,14 +228,6 @@ Você verá os `prints` mostrando a ordem exata de execução. Primeiro o `main.
 
 ---
 
-Perfeito. Vamos estruturar o **Passo 3** mantendo o rigor técnico e a formatação didática que você estabeleceu para o seu material.
-
-Nesta etapa, o foco é construir o arquivo `tools.py`. É importante explicar aos alunos que o modelo de linguagem (LLM) atua apenas como um motor de raciocínio lógico; ele não possui capacidade nativa de acessar o sistema de arquivos local ou executar processamentos pesados. Para contornar essa limitação, nós expomos funções Python clássicas através de um decorador específico (`@tool`), que instrui o modelo sobre quais parâmetros a função exige e o que ela retorna.
-
-Aqui está o conteúdo que você pode incorporar ao seu tutorial:
-
----
-
 ## Passo 3: Implementação das Ferramentas (Tools)
 
 O modelo de linguagem não executa ações no sistema operacional de forma autônoma. Para que o agente consiga manipular arquivos e dados, precisamos construir funções em Python e expô-las como "Ferramentas" (Tools). O LLM receberá a assinatura dessas funções (nome, parâmetros e descrição) e decidirá quando acioná-las.
