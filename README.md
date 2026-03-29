@@ -355,67 +355,57 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage
 
-# 1. Importando as ferramentas construídas no Passo 3
+# Importando as ferramentas
 from tools import extract_file, analyze_data, notify_user
 
-# 2. Redefinindo o Estado
-# Utilizamos 'add_messages' para que o LangGraph anexe novas mensagens ao histórico 
-# em vez de sobrescrevê-las.
+# 1. Definição do Estado
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
 
-# 3. Configuração do Modelo e Injeção das Ferramentas
-tools = [extract_file, analyze_data, notify_user]
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
-
-# O método bind_tools informa à API do Google quais ferramentas estão disponíveis
-llm_with_tools = llm.bind_tools(tools)
-
-# 4. Definição do System Prompt (Diretrizes de Comportamento)
-sys_msg = SystemMessage(content="""Você é um agente autônomo de análise de dados.
-Seu objetivo é processar arquivos solicitados, analisá-los e notificar o usuário.
-Siga estas etapas rigorosamente:
-1. Extraia o arquivo fornecido utilizando a ferramenta apropriada.
-2. Analise os dados extraídos para identificar colunas, nulos e distribuições estatísticas.
-3. Elabore um relatório consolidado e envie a notificação ao usuário.
-Sempre utilize as ferramentas disponíveis. Não invente ou simule dados.
-""")
-
-# 5. Criação do Nó Principal (Agente)
-def agent_node(state: AgentState):
-    print(">>> [Nó: Agente] Avaliando o estado atual e determinando a próxima ação...")
-    # Injetamos as diretrizes do sistema no início do histórico de mensagens
-    messages = [sys_msg] + state["messages"]
+# 2. Função de Fábrica para injeção de dependência
+def create_agent_workflow(api_key: str):
+    """
+    Constrói e compila o grafo do agente, injetando as credenciais necessárias.
+    """
+    # Instanciação do modelo utilizando a chave injetada explicitamente
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash", 
+        temperature=0, 
+        api_key=api_key
+    )
     
-    # Invocamos o modelo
-    response = llm_with_tools.invoke(messages)
+    tools = [extract_file, analyze_data, notify_user]
+    llm_with_tools = llm.bind_tools(tools)
+
+    sys_msg = SystemMessage(content="""Você é um agente autônomo de análise de dados.
+    Seu objetivo é processar arquivos solicitados, analisá-los e notificar o usuário.
+    Siga estas etapas rigorosamente:
+    1. Extraia o arquivo fornecido utilizando a ferramenta apropriada.
+    2. Analise os dados extraídos para identificar colunas, nulos e distribuições estatísticas.
+    3. Elabore um relatório consolidado e envie a notificação ao usuário.
+    Sempre utilize as ferramentas disponíveis. Não invente ou simule dados.
+    """)
+
+    def agent_node(state: AgentState):
+        print(">>> [Nó: Agente] Avaliando o estado atual e determinando a próxima ação...")
+        messages = [sys_msg] + state["messages"]
+        response = llm_with_tools.invoke(messages)
+        return {"messages": [response]}
+
+    # Construção da Topologia do Grafo
+    workflow = StateGraph(AgentState)
+    workflow.add_node("agent", agent_node)
     
-    # Retornamos a resposta para ser anexada ao Estado
-    return {"messages": [response]}
+    tool_node = ToolNode(tools)
+    workflow.add_node("tools", tool_node)
+    
+    workflow.set_entry_point("agent")
+    workflow.add_conditional_edges("agent", tools_condition)
+    workflow.add_edge("tools", "agent")
 
-# 6. Construção da Topologia do Grafo
-workflow = StateGraph(AgentState)
-
-# Adicionamos os nós de processamento
-workflow.add_node("agent", agent_node)
-
-# ToolNode é um nó utilitário do LangGraph que executa automaticamente a ferramenta solicitada pelo LLM.
-tool_node = ToolNode(tools)
-workflow.add_node("tools", tool_node)
-
-# Configuração do fluxo
-workflow.set_entry_point("agent")
-
-# Aresta Condicional: 
-# Se a resposta do 'agent' contiver uma requisição de ferramenta, vai para 'tools'.
-# Se for apenas uma resposta em texto final, encerra o fluxo (END).
-workflow.add_conditional_edges("agent", tools_condition)
-
-# Após a execução da ferramenta, o fluxo DEVE retornar ao agente para avaliação do resultado.
-workflow.add_edge("tools", "agent")
-
-# Compilação do executável
-app = workflow.compile()
+    # Retorna o aplicativo compilado, pronto para invocação
+    return workflow.compile()
+    
 ```
 
 ### B. Atualizando o Ponto de Entrada (Edite o arquivo `main.py`)
@@ -428,33 +418,41 @@ Substitua o conteúdo de `main.py` pelo código abaixo:
 import os
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
-from agent import app
 
-load_dotenv()
+# Importamos a função de fábrica em vez do objeto estático
+from agent import create_agent_workflow
 
 def main():
     print("Iniciando a orquestração do Agente Analista de Dados...\n")
     
-    # Definimos o arquivo alvo (que criaremos no Passo 5)
+    # 1. Recuperação de Configurações (Composition Root)
+    load_dotenv()
+    api_key = os.getenv("GEMINI_API_KEY")
+    
+    # Validação de segurança em nível de orquestrador
+    if not api_key:
+        raise ValueError("Erro Crítico: A variável de ambiente GEMINI_API_KEY não foi encontrada.")
+        
+    # 2. Injeção de Dependência
+    # O main.py entrega a credencial para o construtor do agente
+    app = create_agent_workflow(api_key=api_key)
+    
+    # 3. Definição do arquivo alvo (que criaremos no Passo 5)
     arquivo_alvo = "dados_teste.zip"
     
-    # 1. Formulamos a instrução inicial do usuário
     mensagem_usuario = HumanMessage(
         content=f"Inicie a rotina de análise exploratória para o arquivo '{arquivo_alvo}' e notifique-me ao concluir."
     )
     
-    # 2. Montamos o Estado Inicial
     estado_inicial = {"messages": [mensagem_usuario]}
     
     print("Invocando a execução do fluxo autônomo...\n")
     
-    # 3. Execução do Grafo
+    # 4. Execução do Grafo
     estado_final = app.invoke(estado_inicial)
     
-    # 4. Tratamento do Resultado Final
     print("\n=== Execução Concluída ===")
     
-    # Acessamos a última mensagem do histórico, que contém a conclusão do modelo
     resposta_final = estado_final["messages"][-1].content
     print(resposta_final)
 
