@@ -3,7 +3,6 @@
 - Contact: infobarbosa@gmail.com  
 - Github: [infobarbosa](https://github.com/infobarbosa)
 
-
 ## Introdução
 
 A Inteligência Artificial (IA) Generativa é um ramo da inteligência artificial focado na **criação de novos conteúdos originais**, em vez de apenas analisar ou agir sobre dados existentes. Esses conteúdos podem incluir texto, imagens, música, áudio, vídeos e até mesmo código de software.
@@ -18,7 +17,7 @@ Vamos dividir o projeto em 5 fases:
 
 ### Passo 1: Setup
 O objetivo aqui é preparar o ambiente, garantindo que as dependências corretas estejam instaladas e que o código consiga "conversar" com a API do Gemini.
-* **1.1.** Criação da estrutura de pastas no diretório `./data-eng-data-analisys-agent`.
+* **1.1.** Criação da estrutura de pastas no diretório `./data-eng-data-analysis-agent`.
 * **1.2.** Configuração do ambiente virtual Python (`venv`).
 * **1.3.** Instalação das bibliotecas core: `langgraph`, `langchain-google-genai` (para o Gemini), `pandas` e `python-dotenv`.
 * **1.4.** Emissão e configuração segura da chave de API do Google Gemini (`.env`).
@@ -57,8 +56,8 @@ Siga os comandos abaixo, passo a passo:
 Vamos criar o diretório exato que você especificou e entrar nele.
 
 ```bash
-mkdir -p ./data-eng-data-analisys-agent
-cd ./data-eng-data-analisys-agent
+mkdir -p ./data-eng-data-analysis-agent
+cd ./data-eng-data-analysis-agent
 
 ```
 
@@ -140,7 +139,7 @@ class AgentState(TypedDict):
 # 2. Inicializando o cliente da API do LLM
 # Estamos instanciando o wrapper que fará os POSTs para a API do Google.
 # Usamos temperature=0 para respostas mais determinísticas (ideal para análise de dados).
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
 
 # 3. Criando o Nó (A função de processamento)
 def pensar_node(state: AgentState):
