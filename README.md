@@ -127,6 +127,7 @@ touch ./data-eng-data-analysis-agent/.env
 Inclua o seguinte conteúdo no arquivo `.env`:
 ```env
 GEMINI_API_KEY=sua_chave_gerada_aqui
+GEMINI_MODEL=gemini-2.5-flash
 
 ```
 
@@ -157,13 +158,13 @@ class AgentState(TypedDict):
     resposta_agente: Optional[str]
 
 # 2. Função de Fábrica para construção do Workflow
-def create_agent_workflow(api_key: str):
+def create_agent_workflow(api_key: str, model: str = "gemini-2.5-flash") -> StateGraph[AgentState]:
     """
     Constrói o grafo do agente injetando a chave de API necessária.
     """
     
     # Inicialização do modelo com a chave injetada
-    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", api_key=api_key, temperature=0)
+    llm = ChatGoogleGenerativeAI(model=model, api_key=api_key, temperature=0)
 
     # Definição do Nó de Execução
     def invocar_modelo_node(state: AgentState):
@@ -201,12 +202,13 @@ def main():
     # 1. Carga e recuperação de configurações de ambiente
     load_dotenv()
     api_key = os.getenv("GEMINI_API_KEY")
+    model = os.getenv("GEMINI_MODEL")
     
     if not api_key:
         raise ValueError("ERRO: Variável GEMINI_API_KEY não configurada no arquivo .env")
     
     # 2. Injeção de dependência e construção do agente
-    app = create_agent_workflow(api_key=api_key)
+    app = create_agent_workflow(api_key=api_key, model=model)
     
     # 3. Definição do payload inicial
     estado_inicial = {
