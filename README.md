@@ -95,7 +95,7 @@ python-dotenv
 
 3. Instale as dependências:
 ```bash
-pip install -r requirements.txt
+pip install -r ./data-eng-data-analysis-agent/requirements.txt
 
 ```
 
