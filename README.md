@@ -1,4 +1,4 @@
-# Data Pipelines com GenAI
+# Agente Analista de Dados
 - Author: Prof. Barbosa  
 - Contact: infobarbosa@gmail.com  
 - Github: [infobarbosa](https://github.com/infobarbosa)
