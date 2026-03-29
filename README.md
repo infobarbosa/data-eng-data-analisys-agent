@@ -79,9 +79,18 @@ Agora vamos baixar as bibliotecas necessárias:
 * `pandas`: A engine de processamento de dados que usaremos nas ferramentas.
 * `python-dotenv`: Para carregar nossa chave de API de forma segura para a memória (variáveis de ambiente).
 
-Execute:
+1. Crie um arquivo `requirements.txt`:
+```sh
+langgraph
+langchain-google-genai
+pandas
+python-dotenv
+
+```
+
+2. Instale as dependências:
 ```bash
-pip install langgraph langchain-google-genai pandas python-dotenv
+pip install -r requirements.txt
 
 ```
 
