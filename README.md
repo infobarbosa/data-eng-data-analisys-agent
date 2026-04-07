@@ -176,6 +176,7 @@ class Settings:
 Neste arquivo, definiremos a estrutura de memória do agente (Estado) e uma função de fábrica que encapsula a lógica de criação do grafo.
 
 ```python
+# agent.py
 from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -221,6 +222,7 @@ def create_agent_workflow(api_key: str, model: str) -> StateGraph[AgentState]:
 O arquivo `main.py` atua como a **Raiz de Composição** (Composition Root). Ele é o responsável por carregar as variáveis de ambiente e injetar a dependência (API Key) no construtor do agente.
 
 ```python
+# main.py
 import os
 from config import Settings
 from dotenv import load_dotenv
@@ -383,7 +385,6 @@ Abra o arquivo `agent.py` e substitua o código anterior por esta nova estrutura
 
 ```python
 # agent.py
-# agent.py
 from typing import Annotated, TypedDict
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
@@ -454,7 +455,6 @@ Agora que o agente possui ferramentas e um fluxo de decisão, precisamos atualiz
 Substitua o conteúdo de `main.py` pelo código abaixo:
 
 ```python
-# main.py
 # main.py
 import os
 from langchain_core.messages import HumanMessage
