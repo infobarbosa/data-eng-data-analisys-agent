@@ -222,6 +222,7 @@ O arquivo `main.py` atua como a **Raiz de Composição** (Composition Root). Ele
 
 ```python
 import os
+from config import Settings
 from dotenv import load_dotenv
 from agent import create_agent_workflow
 
